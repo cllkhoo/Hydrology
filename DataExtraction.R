@@ -55,8 +55,9 @@ runoff_data <- hy_daily_flows(station_number = stns, start_date = "2000-01-01", 
 
 ggplot(runoff_data) +
   geom_line(aes(x=Date, y=runoff, colour = STATION_NAME)) +
-  labs(y="Mean daily runoff (mm/day)") +
-  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  labs(title = "Normalized Discharge", y="Mean daily runoff (mm/day)", subtitle = "Data Source: Canadian National Water Data Archive") + scale_fill_gradient2() +
+  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "bottom", legend.title = element_blank(), legend.direction = "vertical") 
+#Save as PNG 600 x 500
 
 -------------------------------------------------GETTING REALTIME DATA--------------------------------------------------------
   
