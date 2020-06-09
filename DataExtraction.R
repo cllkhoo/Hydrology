@@ -57,7 +57,7 @@ ggplot(runoff_data) +
   geom_line(aes(x=Date, y=runoff, colour = STATION_NAME)) +
   labs(title = "Normalized Discharge", y="Mean daily runoff (mm/day)", subtitle = "Data Source: Canadian National Water Data Archive") + scale_fill_gradient2() +
   theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "bottom", legend.title = element_blank(), legend.direction = "vertical") 
-#Save as PNG 600 x 500
+#Saved as PNG 600 x 500 - "Normalized_Discharge2018.png"
 
 -------------------------------------------------GETTING REALTIME DATA--------------------------------------------------------
   
