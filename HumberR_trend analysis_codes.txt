@@ -1,0 +1,281 @@
+#Set directory
+setwd("C:/Users/Dilanka/Dropbox/Thesis writting n papers/Publication/Excel files/Trend analysis/files/Humber")
+trendH <- "C:/Users/Dilanka/Dropbox/Thesis writting n papers/Publication/Excel files/Trend analysis/files/Humber"
+setwd(trendH)
+
+require(gdata)
+require(dplyr)
+
+library(xlsx)
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(scales)
+rm(list = ls())
+
+#Import data sheet from my PC (Original spreadsheet was downloaded form EC website)
+trendHR <- read_excel("trendH.xlsx", sheet = "1") 
+trendHR[['Date']] <- as.Date.POSIXct(trendHR[['Date']], format='%m/%d/%y')
+
+trendHR$year <- year(trendHR$Date)
+
+#To assign season by my seasonal designations, I took 2012 because it was a leap year and it was taken as an sample year to assign other years
+getSeasonH <- function(DATES) {
+  WS <- as.Date("2012-12-10", format = "%Y-%m-%d") # Winter 
+  SE <- as.Date("2012-4-6",  format = "%Y-%m-%d") # Spring 
+  SS <- as.Date("2012-6-1",  format = "%Y-%m-%d") # Summer 
+  FE <- as.Date("2012-9-10",  format = "%Y-%m-%d") # Fall 
+  
+  # Convert dates from any year to 2012 dates
+  d <- as.Date(strftime(DATES, format="2012-%m-%d"))
+  
+  ifelse (d >= WS | d < SE, "Winter",
+          ifelse (d >= SE & d < SS, "Spring melt",
+                  ifelse (d >= SS & d < FE, "Summer", "Fall")))
+}
+
+my.dates <- as.Date("2011-12-01", format = "%Y-%m-%d") + 0:60
+trendHR$season <- getSeasonH(trendHR$Date)
+write.xlsx(trendHR, file = "maxHR.xlsx")
+
+
+
+#TO get the maximum discharge and make coloums for years and seasons for plotting
+max3 <- trendHR %>% group_by(season,year) %>% slice(which.max(Value))
+#Export to excel
+openxlsx::write.xlsx(max3, file = "max3.xlsx")
+
+#Total discharge in cumec
+Total <- trendHR %>% group_by(season,year) %>% summarise(Total_discharge = sum(Value))
+openxlsx::write.xlsx(Total, file = "Total_discharge.xlsx")
+
+#To convert value in m^3s-1 to m^3, and add a new coloum by multiplying Value coloumn
+trend2 <- trendHR %>% mutate(Volume = Value * 86400) 
+#To get runoff by normalizing to the catchment area
+trend3 <- trend2 %>% mutate(runoff = (Volume * 10^9)/(7860*10^12)) 
+#To get total seasonal volume
+Total2 <- trend2 %>% group_by(season,year) %>% summarise(Seasonal_volume_= sum(Volume))
+#To get the seasonal runoff 
+Total3 <- Total2 %>% mutate(Seasonal_runoff= (Seasonal_volume_* 10^9)/(7860*10^12))
+#To get total annual volume
+TotalAnnual <- trend2 %>% group_by(year) %>% summarise(Total_volume_= sum(Volume))
+#To get the annual runoff 
+TotalAnnual2 <- TotalAnnual %>% mutate(Annualrunoff= (Total_volume_* 10^9)/(7860*10^12))
+
+
+
+#To get the discharge for each season
+fall <- trendHR %>%
+  filter(season == "Fall")
+openxlsx::write.xlsx(fall, file = "fall.xlsx")
+fallR <- trend3  %>%
+  filter(season == "Fall")
+
+springmelt <- trendHR %>%
+  filter(season == "Spring melt")
+openxlsx::write.xlsx(springmelt, file = "springmelt.xlsx")
+springmeltR <- trend3 %>%
+  filter(season == "Spring melt")
+
+#To get the max discharge for each season
+fallmax <- max3 %>%
+  filter(season == "Fall")
+openxlsx::write.xlsx(fallmax, file = "fallmax.xlsx")
+
+springmeltmax <- max3 %>%
+  filter(season == "Spring melt")
+openxlsx::write.xlsx(springmeltmax, file = "springmeltmax.xlsx")
+
+wintermax <- max3 %>%
+  filter(season == "Winter")
+openxlsx::write.xlsx(wintermax, file = "wintermax.xlsx")
+
+#To get the Seasonal volumes by year
+Totalfalldischarge <- Total2%>%
+  filter(season == "Fall")
+openxlsx::write.xlsx(Totalfalldischarge, file = "falltotal.xlsx")
+
+Totalspringmeltdischarge <- Total2%>%
+  filter(season == "Spring melt")
+openxlsx::write.xlsx(Totalspringmeltdischarge, file = "springmelttotal.xlsx")
+
+Totalwinterdischarge <- Total2%>%
+  filter(season == "Winter")
+openxlsx::write.xlsx(Totalwinterdischarge, file = "wintertotal.xlsx")
+
+#To get seasonal runoff (mm) by year
+
+Totalfallrunoff <- Total3%>%
+  filter(season == "Fall")
+openxlsx::write.xlsx(Totalfalldischarge, file = "falltotalrunoff.xlsx")
+
+Totalspringmeltrunoff <- Total3%>%
+  filter(season == "Spring melt")
+openxlsx::write.xlsx(Totalspringmeltdischarge, file = "springmelttotalrunoff.xlsx")
+
+Totalwinterrunoff <- Total3%>%
+  filter(season == "Winter")
+openxlsx::write.xlsx(Totalwinterdischarge, file = "wintertotalrunoff.xlsx")
+
+
+# 1.Ratios
+#To get the ratio of fall seasonal voloumes to annual
+#Ratiofall <- mutate(TotalAnnual$Total_volume_/Totalfalldischarge$Seasonal_volume_)
+SeasonalAnualFall <- merge(TotalAnnual,Totalfalldischarge, by = "year", sort = TRUE, all.x = TRUE)
+#SeasonalAnual$ratio <- SeasonalAnual%>% mutate(ratio = Total_volume_.x/Total_volume_.y)
+SeasonalAnualFall <- SeasonalAnualFall %>% mutate(ratio = Seasonal_volume_/Total_volume_)
+#For runoff
+SeasonalAnualFallR <- merge(TotalAnnual2,Totalfallrunoff, by = "year", sort = TRUE, all.x = TRUE)
+SeasonalAnualFallR <- SeasonalAnualFallR %>% mutate(ratio = Seasonal_runoff/Annualrunoff)
+openxlsx::write.xlsx(SeasonalAnualFall, file = "SeasonalAnualFall.xlsx")
+
+#To get the ratio of winter seasonal voloumes to annual
+SeasonalAnualWinter <- merge(TotalAnnual,Totalwinterdischarge, by = "year", sort = TRUE, all.x = TRUE)
+SeasonalAnualWinter <- SeasonalAnualWinter %>% mutate(ratio = Seasonal_volume_/Total_volume_)
+openxlsx::write.xlsx(SeasonalAnualWinter, file = "SeasonalAnualWinter.xlsx")
+#For runoff
+SeasonalAnualWinterR <- merge(TotalAnnual2,Totalwinterrunoff, by = "year", sort = TRUE, all.x = TRUE)
+SeasonalAnualWinterR <- SeasonalAnualWinterR %>% mutate(ratio = Seasonal_runoff/Annualrunoff)
+openxlsx::write.xlsx(SeasonalAnualWinterR, file = "SeasonalAnualWinterR.xlsx")
+
+#To get the ratio of springmelt seasonal voloumes to annual
+SeasonalAnualSpringmlet <- merge(TotalAnnual,Totalspringmeltdischarge, by = "year", sort = TRUE, all.x = TRUE)
+SeasonalAnualSpringmlet <- SeasonalAnualSpringmlet %>% mutate(ratio = Seasonal_volume_/Total_volume_)
+openxlsx::write.xlsx(SeasonalAnualSpringmlet, file = "SeasonalAnualSpringmlet.xlsx")
+#For runoff
+SeasonalAnualSpringmletR <- merge(TotalAnnual2,Totalspringmeltrunoff, by = "year", sort = TRUE, all.x = TRUE)
+SeasonalAnualSpringmletR <- SeasonalAnualSpringmletR %>% mutate(ratio = Seasonal_runoff/Annualrunoff)
+openxlsx::write.xlsx(SeasonalAnualSpringmletR, file = "SeasonalAnualSpringmletR.xlsx")
+
+
+#trend2 <- trend %>% mutate(Volume = Value * 86400)
+#Total2 <- trend2 %>% group_by(season,year) %>% summarise(Total_volume_= sum(Volume))
+library(ggplot2)
+
+#2. Seasonal plots
+ylabplot = expression(Discharge~  m^3*~ s^-1)
+
+plotfall<-ggplot(fall, aes(x = Date, y = Value)) + geom_line(color = "#00AFBB", size = 0.7 )+ geom_point(color = "#00AFBB", size = 0.5)+
+  #geom_line(aes(color = "#00AFBB"))+ 
+  facet_wrap(vars(year), scales = "free" )+ ggtitle("Fall discharge for Humber River")+ labs(y=ylabplot, x= "Date" , face = "bold")+
+  scale_x_date(date_breaks = "1 month", date_labels = "%b")+ylim(0,500)
+
+plotsm<-ggplot(springmelt, aes(x = Date, y = Value)) + geom_line(color = "#00AFBB", size = 0.7)+ geom_point(color = "#00AFBB", size = 0.5)+
+  #geom_line(aes(color = "#00AFBB"))+
+  facet_wrap(vars(year), scales = "free" )+ggtitle("Spring melt discharge for Humber River")+ labs(y=ylabplot, x= "Date" , face = "bold")+
+  scale_x_date(date_breaks = "1 month", date_labels = "%b")+ylim(0,1000)
+#runoff plots
+plotfallR<-ggplot(fallR, aes(x = Date, y = runoff)) + geom_line(color = "#00AFBB", size = 0.7 )+ geom_point(color = "#00AFBB", size = 0.5)+
+  #geom_line(aes(color = "#00AFBB"))+ 
+  facet_wrap(vars(year), scales = "free" )+ ggtitle("Fall runoff(mm) for Humber River")+ labs(y=ylabplot, x= "Date" , face = "bold")+
+  scale_x_date(date_breaks = "1 month", date_labels = "%b")+ylim(0,7)
+
+plotspringmeltR<-ggplot(springmeltR, aes(x = Date, y = runoff)) + geom_line(color = "#00AFBB", size = 0.7 )+ geom_point(color = "#00AFBB", size = 0.5)+
+  #geom_line(aes(color = "#00AFBB"))+ 
+  facet_wrap(vars(year), scales = "free" )+ ggtitle("Springmelt runoff(mm) for Humber River")+ labs(y=ylabplot, x= "Date" , face = "bold")+
+  scale_x_date(date_breaks = "1 month", date_labels = "%b")+ylim(0,10)
+
+
+ylab = expression(Peak~ discharge~  m^3*~ s^-1)
+ylab2 = expression(Total~ discharge~  m^3*~ s^-1)
+
+install.packages("ggpmisc")
+library(ggpmisc)
+
+#3. Seasonal peak discharge values vs time
+#Peak discharge vs time
+#Fall
+trendfallpeak <-ggplot(fallmax, aes(x = year, y = Value)) + geom_point(color = "#0072B2", size = 2)+geom_smooth(method = lm, se=FALSE)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y=ylab, x= "Year" , face = "bold",title = "Peak fall vs time") + 
+  theme_bw()+scale_y_continuous(limits= c(0,40))+
+FallPeak.lm = lm(year ~ Value, data=fallmax)
+summary(FallPeak.lm) 
+SpearmanFall <- cor.test(fallmax$year, fallmax$Value,  method = "spearman")
+SpearmanFall
+
+#SPringmelt
+trendspringpeak <-ggplot(springmeltmax, aes(x = year, y = Value)) + geom_point(color = "#0072B2", size = 2)+geom_smooth(method = lm, se=FALSE)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y=ylab, x= "Year" , face = "bold",title = "Peak springmelt vs time") + 
+  theme_bw() + scale_y_continuous(limits= c(0,40))+
+#TO get statistics
+SpringmeltPeak.lm = lm(year ~ Value, data=springmeltmax)
+summary(SpringmeltPeak.lm) 
+SpringmeltPeak.lm$coefficients
+print(SpringmeltPeak.lm)
+Spearmanspringmelt <- cor.test(springmeltmax$year, springmeltmax$Value,  method = "spearman")
+Spearmanspringmelt
+
+#winter
+trendwinterpeak <-ggplot(wintermax, aes(x = year, y = Value)) + geom_point(color = "#0072B2", size = 2)+geom_smooth(method = lm, se=FALSE)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y=ylab, x= "Year" , face = "bold",title = "Peak winter vs time")+theme_bw()
+#TO get statistics
+WinterPeak.lm = lm(year ~ Value, data=wintermax)
+summary(WinterPeak.lm) 
+print(WinterPeak.lm)
+WinterPeak.lm$coefficients
+Spearmanwinter <- cor.test(wintermax$year, wintermax$Value,  method = "spearman")
+Spearmanwinter
+
+#4. Total seasonal water volumes
+trendtotalfall <- ggplot(Totalfalldischarge, aes(x = year, y = Total_discharge)) + geom_bar( fill = "#0072B2",stat = "identity")+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y=ylab2, x= "Date" , face = "bold", title="Total fall discharge") 
+trendtotalspringmelt <- ggplot(Totalspringmeltdischarge, aes(x = year, y = Total_discharge)) + geom_bar( fill = "#0072B2",stat = "identity")+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y=ylab2, x= "Date" , face = "bold",title="Total springmlet discharge") 
+trendtotalwinter <- ggplot(Totalwinterdischarge, aes(x = year, y = Total_discharge)) + geom_bar( fill = "#0072B2",stat = "identity")+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y=ylab2, x= "Date" , face = "bold",title="Total winter discharge") 
+# runoff over time
+
+#5. Maximum discharge timing 
+#To get the maximum discharge time by month and the date
+fallmax$Month <- format(as.Date(fallmax$Date), "%m-%d")
+springmeltmax$Month <- format(as.Date(springmeltmax$Date), "%m-%d")
+openxlsx::write.xlsx(fallmax, file = "fallmaxmonth.xlsx")
+openxlsx::write.xlsx(springmeltmax, file = "springmeltmaxmonth.xlsx")
+
+
+#6. Trend and slopes for seasonal Peak dates and year
+
+trendfalltiming <-ggplot(fallmax, aes(x = year, y = Month)) + geom_point(color = "#0072B2", size = 2)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y= "Peak discharge date", x= "Date" , face = "bold",title = "Peak fall Date vs time") +
+  theme_bw()
+
+trendspringmelttiming <-ggplot(springmeltmax, aes(x = year, y = Month)) + geom_point(color = "#0072B2", size = 2)+ 
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y= "Peak discharge date", x= "Date" , face = "bold",title = "Peak springmelt Date vs time")+
+  theme_bw()
+
+
+# create fall and springmelt begin date (Begin date was picked mannualy and then used a new excel file)
+StartdatefallH <- read_excel("Fall_begin_dateH.xlsx", sheet = "1") 
+StartdatefallH[['Date']] <- as.Date.POSIXct(StartdatefallH[['Date']], format='%m/%d/%y')
+StartdatefallH$Day <-format(as.Date(StartdatefallH$Date), "%m-%d")
+openxlsx::write.xlsx(StartdatefallH, file = "StartdatefallH.xlsx")
+
+StartdatespringmeltH <- read_excel("Springmlet_begin_dateH.xlsx", sheet = "1") 
+StartdatespringmeltH[['Date']] <- as.Date.POSIXct(StartdatespringmeltH[['Date']], format='%m/%d/%y')
+StartdatespringmeltH$Day <-format(as.Date(StartdatespringmeltH$Date), "%m-%d")
+openxlsx::write.xlsx(StartdatespringmeltH, file = "StartdatespringmeltH.xlsx")
+
+#To plot start date with year
+StartdatefallplotH <-ggplot(StartdatefallH, aes(x = Year, y = Day)) + geom_point(color = "#0072B2", size = 2)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y= "Start date", x= "Date" , face = "bold",title = "Start date fall") +
+  theme_bw()
+
+StartdatespringmeltplotH <-ggplot(StartdatespringmeltH, aes(x = Year, y = Day)) + geom_point(color = "#0072B2", size = 2)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ labs(y= "Start date", x= "Date" , face = "bold",title = "Start date springmelt") +
+  theme_bw()
+#To plot seasonal and annual water volume ratios
+SeasonalAnualFallplot <-ggplot(SeasonalAnualFall, aes(x = year, y = ratio)) + geom_point(color = "#0072B2", size = 2)+geom_smooth(method = lm, se=FALSE)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5) )+ scale_y_continuous(limits= c(0.0,0.4)) +labs(y= "Ratio", x= "Year" , face = "bold",title = "Fall seasonal precip/Annual precip") + 
+  theme_bw()
+SeasonalAnualSpringmletplot <-ggplot(SeasonalAnualSpringmlet, aes(x = year, y = ratio)) + geom_point(color = "#0072B2", size = 2)+geom_smooth(method = lm, se=FALSE)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ scale_y_continuous(limits= c(0.0,0.6))+ labs(y= "Ratio", x= "Year" , face = "bold",title = "Springmelt seasonal precip/Annual precip") +
+  theme_bw()
+#To plot seasonal and annual total runoff ratios
+SeasonalAnualFallRplot <-ggplot(SeasonalAnualFallR, aes(x = year, y = ratio)) + geom_point(color = "#0072B2", size = 2)+geom_smooth(method = lm, se=FALSE)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5) )+ scale_y_continuous(limits= c(0.0,0.4)) +labs(y= "Ratio", x= "Year" , face = "bold",title = "Fall seasonal runoff/Annual runoff") + 
+  theme_bw()
+SeasonalAnualSpringmletRplot <-ggplot(SeasonalAnualSpringmletR, aes(x = year, y = ratio)) + geom_point(color = "#0072B2", size = 2)+geom_smooth(method = lm, se=FALSE)+
+  scale_x_continuous(breaks=seq(1983, 2019, 5))+ scale_y_continuous(limits= c(0.0,0.6))+ labs(y= "Ratio", x= "Year" , face = "bold",title = "Springmelt seasonal runoff/Annual runoff") +
+  theme_bw()
