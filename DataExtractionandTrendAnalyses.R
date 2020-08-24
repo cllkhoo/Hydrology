@@ -157,10 +157,10 @@ hy_stations(station_number = unique(SB1$STATION_NUMBER)) %>%
 
 #To assign the special dates for the hydrologic year (if not we can use prevous dates based on the boreal hydrology)
 getSeason <- function(DATES) {
-  WS <- as.Date("2012-12-10", format = "%Y-%m-%d") # Winter Solstice
-  SE <- as.Date("2012-3-15",  format = "%Y-%m-%d") # Spring Equinox
-  SS <- as.Date("2012-6-1",  format = "%Y-%m-%d") # Summer Solstice
-  FE <- as.Date("2012-9-10",  format = "%Y-%m-%d") # Fall Equinox
+  WS <- as.Date("2012-12-10", format = "%Y-%m-%d") # Winter 
+  SE <- as.Date("2012-3-15",  format = "%Y-%m-%d") # Spring
+  SS <- as.Date("2012-6-1",  format = "%Y-%m-%d") # Summer
+  FE <- as.Date("2012-9-10",  format = "%Y-%m-%d") # Fall
   
   # Convert dates from any year to 2012 dates
   d <- as.Date(strftime(DATES, format="2012-%m-%d"))
